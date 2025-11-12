@@ -98,25 +98,35 @@ def solve_puzzle(board_str, algorithm):
         # Parse the board
         board_str = board_str.strip()
         if not board_str:
-            return None, "Please enter a valid puzzle configuration.", None, None, None, None
+            return None, "⚠️ Please enter a valid puzzle configuration.", None, None, None, None
 
         # Convert string to board
-        tiles = [int(x) for x in board_str.replace(',', ' ').split()]
+        try:
+            tiles = [int(x) for x in board_str.replace(',', ' ').split()]
+        except ValueError:
+            return None, "⚠️ Please enter only numbers (0-8) separated by spaces.", None, None, None, None
+
         if len(tiles) != 9:
-            return None, "Please enter exactly 9 numbers (0-8).", None, None, None, None
+            return None, f"⚠️ Please enter exactly 9 numbers. You entered {len(tiles)}.", None, None, None, None
 
         if sorted(tiles) != list(range(9)):
-            return None, "Please use numbers 0-8 exactly once.", None, None, None, None
+            return None, "⚠️ Please use numbers 0-8 exactly once.", None, None, None, None
 
         board = [tiles[i:i+3] for i in range(0, 9, 3)]
 
         # Check if solvable
         if not is_solvable(board):
             initial_img = create_puzzle_image(board)
-            return initial_img, "❌ This puzzle is not solvable! The number of inversions is odd.", None, None, None, None
+            return initial_img, "❌ **This puzzle is not solvable!**\n\nThe number of inversions is odd. Only puzzles with an even number of inversions can be solved.\n\n💡 Try clicking 'Random Puzzle' to get a solvable configuration.", None, None, None, None
 
         # Create initial state image
         initial_img = create_puzzle_image(board)
+
+        # Check if already solved
+        if board == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]:
+            final_img = create_puzzle_image(board)
+            stats = "### ✅ Puzzle Already Solved!\n\nThis puzzle is already in the goal state. No moves needed!"
+            return initial_img, stats, final_img, [initial_img], 0, "No moves needed"
 
         # Select algorithm
         initial_state = State(board, paths=[])
@@ -134,12 +144,12 @@ def solve_puzzle(board_str, algorithm):
         elif algorithm == "A* (Euclidean)":
             result = a_star(initial_state, euclidean_heuristic)
         else:
-            return initial_img, "Invalid algorithm selected.", None, None, None, None
+            return initial_img, "⚠️ Invalid algorithm selected.", None, None, None, None
 
         end_time = time.time()
 
         if result is None:
-            return initial_img, "❌ Could not find a solution (may have exceeded search limits).", None, None, None, None
+            return initial_img, "❌ Could not find a solution.\n\nThis might be due to:\n- Search depth limits (for DFS)\n- Memory constraints\n- Very complex puzzle configuration\n\n💡 Try using A* (Manhattan) for better results!", None, None, None, None
 
         # Generate solution images
         solution_images = [initial_img]
@@ -204,6 +214,30 @@ def generate_and_display_random():
     return board_str, img, None, None, None, None
 
 
+def load_example_easy():
+    """Load an easy example (1 move from solution)."""
+    board_str = "1 0 2 3 4 5 6 7 8"
+    board = [[1, 0, 2], [3, 4, 5], [6, 7, 8]]
+    img = create_puzzle_image(board)
+    return board_str, img, None, None, None, None
+
+
+def load_example_medium():
+    """Load a medium difficulty example (5 moves)."""
+    board_str = "1 2 3 4 5 6 0 7 8"
+    board = [[1, 2, 3], [4, 5, 6], [0, 7, 8]]
+    img = create_puzzle_image(board)
+    return board_str, img, None, None, None, None
+
+
+def load_example_hard():
+    """Load a hard example (20+ moves)."""
+    board_str = "8 6 7 2 5 4 3 0 1"
+    board = [[8, 6, 7], [2, 5, 4], [3, 0, 1]]
+    img = create_puzzle_image(board)
+    return board_str, img, None, None, None, None
+
+
 def create_demo():
     """Create the Gradio interface."""
 
@@ -237,6 +271,12 @@ def create_demo():
                 with gr.Row():
                     solve_btn = gr.Button("🚀 Solve Puzzle", variant="primary", size="lg")
                     random_btn = gr.Button("🎲 Random Puzzle", variant="secondary", size="lg")
+
+                gr.Markdown("#### 📝 Quick Examples:")
+                with gr.Row():
+                    easy_btn = gr.Button("Easy (1 move)", size="sm")
+                    medium_btn = gr.Button("Medium (5 moves)", size="sm")
+                    hard_btn = gr.Button("Hard (20+ moves)", size="sm")
 
                 gr.Markdown("""
                 ### 📚 Algorithm Descriptions:
@@ -289,6 +329,24 @@ def create_demo():
 
         random_btn.click(
             fn=generate_and_display_random,
+            inputs=[],
+            outputs=[board_input, initial_image, solution_stats, final_image, solution_gallery, move_count]
+        )
+
+        easy_btn.click(
+            fn=load_example_easy,
+            inputs=[],
+            outputs=[board_input, initial_image, solution_stats, final_image, solution_gallery, move_count]
+        )
+
+        medium_btn.click(
+            fn=load_example_medium,
+            inputs=[],
+            outputs=[board_input, initial_image, solution_stats, final_image, solution_gallery, move_count]
+        )
+
+        hard_btn.click(
+            fn=load_example_hard,
             inputs=[],
             outputs=[board_input, initial_image, solution_stats, final_image, solution_gallery, move_count]
         )
